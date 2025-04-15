@@ -13,7 +13,6 @@ jobs:
         os: [ubuntu-latest]
         ocaml-compiler: [5.0.x, 4.13.x]
     runs-on: ${{ matrix.os }}
-
     steps:
       # 1. 检出代码（自动使用当前 Fork 的仓库）
       - name: Checkout code
@@ -28,24 +27,15 @@ jobs:
           ocaml-compiler: ${{ matrix.ocaml-compiler }}
           dune-cache: true
 
-      # 3. 在 Ubuntu 环境中更新 APT（无 sudo）
-      - name: Update APT (Ubuntu only)
-        if: matrix.os == 'ubuntu-latest'
-        shell: bash -l {0}
-        run: |
-          sudo rm -rf /var/lib/apt/lists/*  # 清理旧的索引缓存
-          sudo apt-get update -y            # 更新包索引（使用 sudo，但仅在必要时）
-          sudo apt-get install -y pkg-config  # 安装必要的系统依赖（如 pkg-config）
-
-      # 4. 安装 OPAM 依赖
+      # 3. 安装依赖
       - name: Install OPAM dependencies
         run: opam install . --deps-only --with-doc --with-test
 
-      # 5. 编译项目
+      # 4. 编译项目
       - name: Build with Dune
         run: opam exec -- dune build
 
-      # 6. 上传构建产物
+      # 5. 上传构建产物（关键步骤）
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -54,3 +44,4 @@ jobs:
             _build/default/**/*.exe      # 上传所有可执行文件
             _build/default/**/*.so       # 上传动态库（如有）
             _build/default/**/*.cm*      # 上传 OCaml 编译中间文件
+
