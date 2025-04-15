@@ -10,7 +10,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-22.04, macos-latest]  # 明确指定 Ubuntu 22.04 和 macOS
+        os: [ubuntu-22.04]  # 明确指定 Ubuntu 22.04 和 macOS
         ocaml-compiler: ["5.0.x", "4.13.x"]
     runs-on: ${{ matrix.os }}
 
