@@ -1,35 +1,47 @@
-name: Main workflow
+name: Build OCaml Project and Upload Artifacts
 
 on:
-  - pull_request
-  - push
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:  # 允许手动触发
 
 jobs:
   build:
     strategy:
       fail-fast: false
       matrix:
-        os:
-          - macos-latest
-          - ubuntu-latest
-        ocaml-compiler:
-          - 5.0.x
-          - 4.13.x
-
+        os: [macos-latest, ubuntu-latest]
+        ocaml-compiler: [5.0.x, 4.13.x]
     runs-on: ${{ matrix.os }}
 
     steps:
+      # 1. 检出代码（自动使用当前 Fork 的仓库）
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive  # 自动初始化子模块
 
+      # 2. 设置 OCaml 环境
       - name: Use OCaml ${{ matrix.ocaml-compiler }}
         uses: ocaml/setup-ocaml@v2
         with:
           ocaml-compiler: ${{ matrix.ocaml-compiler }}
           dune-cache: true
 
-      - run: git submodule update --recursive --remote --init
+      # 3. 安装依赖
+      - name: Install OPAM dependencies
+        run: opam install . --deps-only --with-doc --with-test
 
-      - run: opam install . --deps-only --with-doc --with-test
+      # 4. 编译项目
+      - name: Build with Dune
+        run: opam exec -- dune build
 
-      - run: opam exec -- dune build
+      # 5. 上传构建产物（关键步骤）
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: build-${{ matrix.os }}-${{ matrix.ocaml-compiler }}
+          path: |
+            _build/default/**/*.exe      # 上传所有可执行文件
+            _build/default/**/*.so       # 上传动态库（如有）
+            _build/default/**/*.cm*      # 上传 OCaml 编译中间文件
