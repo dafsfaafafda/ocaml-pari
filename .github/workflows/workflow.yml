@@ -7,11 +7,13 @@ on:
     paths:
       - '**.yml'
       - '**.yaml'
+      - '**'
   pull_request:
     branches: [ "main" ]
     paths:
       - '**.yml'
       - '**.yaml'
+      - '**'
   workflow_dispatch:
 
 jobs:
@@ -64,25 +66,15 @@ jobs:
           opam exec -- dune build @install
           find _build -type f -name "*.native" -o -name "*.exe" -o -name "*.a" -o -name "*.so" | xargs ls -la
 
-      - name: Prepare Artifact Paths
-        id: artifact-paths
+      - name: Archive all files
         run: |
-          FIND_CMD="find _build -type f \
-            -name '*.native' -o \
-            -name '*.exe' -o \
-            -name '*.a' -o \
-            -name '*.so' -o \
-            -name '*.dll' -o \
-            -name '*.cm*' -o \
-            -name '*.o' -o \
-            -name '*.obj'"
-          eval $FIND_CMD | xargs ls -la
-          echo "artifact_paths=$(eval $FIND_CMD | tr '\n' ' ')" >> $GITHUB_OUTPUT
+          tar -czvf all_files.tar.gz .
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: release-${{ matrix.os }}-${{ matrix.ocaml-compiler }}
-          path: ${{ steps.artifact-paths.outputs.artifact_paths }}
+          path: |
+            _build/
+            all_files.tar.gz
           retention-days: 3
-        if: success() && steps.artifact-paths.outputs.artifact_paths != ''
