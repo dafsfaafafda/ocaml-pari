@@ -1,4 +1,4 @@
-name: Build OCaml Project (Multi-new_text)
+name: Build OCaml Project (Multi-Platform)
 
 on:
   push:
