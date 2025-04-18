@@ -1,7 +1,10 @@
+
 name: Build OCaml Project (Multi-Platform)
 
 on:
   push:
+    branches: [ "main" ]
+  pull_request:
     branches: [ "main" ]
   workflow_dispatch:
 
@@ -10,7 +13,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-22.04]  # 明确指定 Ubuntu 22.04 和 macOS
+        os: [ubuntu-22.04, macos-12]
         ocaml-compiler: ["5.0.x", "4.13.x"]
     runs-on: ${{ matrix.os }}
 
@@ -18,9 +21,8 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          submodules: recursive  # 确保子模块被拉取
+          submodules: recursive
 
-      # 系统依赖安装（分平台处理）
       - name: Install System Dependencies
         run: |
           if [ "$RUNNER_OS" == "Linux" ]; then
@@ -40,48 +42,38 @@ jobs:
               rsync
           fi
 
-      # 设置 OCaml 环境
       - name: Use OCaml ${{ matrix.ocaml-compiler }}
         uses: ocaml/setup-ocaml@v2
         with:
           ocaml-compiler: ${{ matrix.ocaml-compiler }}
-          dune-cache: true  # 启用 Dune 缓存
+          dune-cache: true
 
-      # 安装 OPAM 依赖
       - name: Install OPAM Dependencies
         run: |
           opam install . --deps-only --with-doc --with-test
-          # 显式安装 darcs（如果项目需要）
           opam depext --install darcs -y || echo "Darcs installation skipped"
 
-      # 构建项目（强制生成可执行文件）
       - name: Build with Dune
         run: |
           opam exec -- dune build @install
-          # 验证构建产物
           find _build -type f -name "*.native" -o -name "*.exe" -o -name "*.a" -o -name "*.so" | xargs ls -la
 
-      # 动态生成产物路径（跨平台兼容）
       - name: Prepare Artifact Paths
         id: artifact-paths
         run: |
-          # 收集所有可能的构建产物
           FIND_CMD="find _build -type f \
             -name '*.native' -o \
             -name '*.exe' -o \
             -name '*.a' -o \
             -name '*.so' -o \
             -name '*.dll'"
-          echo "找到的构建产物："
           eval $FIND_CMD | xargs ls -la
-          # 保存到环境变量
           echo "artifact_paths=$(eval $FIND_CMD | tr '\n' ' ')" >> $GITHUB_OUTPUT
 
-      # 上传产物（动态路径）
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: release-${{ matrix.os }}-${{ matrix.ocaml-compiler }}
           path: ${{ steps.artifact-paths.outputs.artifact_paths }}
-          retention-days: 3  # 自动清理旧产物
+          retention-days: 3
         if: success() && steps.artifact-paths.outputs.artifact_paths != ''
